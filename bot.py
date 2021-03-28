@@ -7,6 +7,11 @@ from chatterbot import ChatBot
 from chatterbot.trainers import ChatterBotCorpusTrainer, ListTrainer
 from chatterbot.conversation import Statement
 
+from bot_modules import tts, commands
+from bot_commands import master_command_list, join_channel_command
+
+print("Arcadia starting...")
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -31,12 +36,16 @@ lace_trainer = ListTrainer(chatbot)
 
 conversation_users = {}
 
+voice_client: discord.VoiceClient = None
+
 @client.event
 async def on_ready():
     print(f'{client.user} has connected to Discord!')
 
 @client.event
 async def on_message(message: discord.Message):
+    global voice_client
+
     if message.author == client.user:
         return
 
@@ -62,14 +71,48 @@ async def on_message(message: discord.Message):
     elif statement.text in [lace_commands[5], lace_commands[7]]:
         del conversation_users[message.author]
 
+    command = commands.match(statement.text, master_command_list)
+
+    if command is not None:
+        if command == join_channel_command:
+            if message.author.voice is None:
+                await message.channel.send("No voice state...?")
+                return
+            
+            if message.author.voice.channel is None:
+                await message.channel.send("You're not in a channel.")
+                return
+
+            voice_channel: discord.VoiceChannel = message.author.voice.channel
+
+            try:
+                voice_client = await voice_channel.connect(timeout=5)
+            except:
+                await message.channel.send("I had issues joining you, sorry. Maybe try again?")
+                raise
+
+    if actualText.strip().startswith("say:"):
+        newMessage = actualText.split("say:")[1]
+        statement.text = newMessage
+
     await message.channel.send(statement)
 
-should_train = input("Should I train? ")
+    # sapi_stream = tts.Sapi5TTSAudioStream(statement.text)
+    tts.say_phrase(statement)
 
+    if voice_client is not None:
+        # voice_client.stop()
+        voice_client.play(discord.FFmpegPCMAudio("local"))
+
+should_train = input("Should I train? (no)")
+
+# Train bot only needs to happen once as training is stored in DB
 if should_train.lower() == "yes":
-    # The bot only needs training once due to its database.
     trainer = ChatterBotCorpusTrainer(chatbot)
     trainer.train('chatterbot.corpus.english')
+
+    # Train app-based commands
+    commands.extend_with_commands(master_command_list, lace_commands)
     lace_trainer.train(lace_commands)
 
 print("Connecting to Discord...")
