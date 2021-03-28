@@ -64,12 +64,14 @@ async def on_message(message: discord.Message):
 
     await message.channel.send(statement)
 
-should_train = input("Should I train?")
+should_train = input("Should I train? ")
 
 if should_train.lower() == "yes":
     # The bot only needs training once due to its database.
     trainer = ChatterBotCorpusTrainer(chatbot)
     trainer.train('chatterbot.corpus.english')
     lace_trainer.train(lace_commands)
+
+print("Connecting to Discord...")
 
 client.run(TOKEN)
