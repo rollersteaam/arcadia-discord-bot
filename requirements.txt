@@ -1,0 +1,5 @@
+discord.py==1.6.0
+python-dotenv==0.16.0
+chatterbot==1.0.8
+chatterbot-corpus==1.2.0
+spacy==3.0.5
